@@ -23,3 +23,5 @@ jobs:
 
       - name: Run orchestrator
         run: python -m src.orchestrator
+        env:
+          CI: "true"
