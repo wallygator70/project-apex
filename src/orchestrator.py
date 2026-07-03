@@ -1,7 +1,7 @@
 import yaml
 import json
 from datetime import datetime
-
+from src.connectors.ross import build_ross_prompt, format_for_ross_display
 # -----------------------------
 # LOAD CONFIG
 # -----------------------------
@@ -35,17 +35,14 @@ memory_interviews = load_json("memory/interviews.json")
 # -----------------------------
 # STAGE 1 — MARKET SCAN (MOCK INPUT FOR NOW)
 # -----------------------------
-def market_scan():
+def market_scan(profile, config):
     """
-    In v1 this is manual input (from Ross copy/paste).
-    Later this will be automated.
+    Generates structured prompt for Ross (manual execution layer)
     """
 
-    print("\n[Market Scanner] Waiting for input from Ross...\n")
+    prompt = build_ross_prompt(profile, config)
 
-    raw_input = input("Paste job opportunities from Ross:\n")
-
-    return raw_input
+    return format_for_ross_display(prompt)
 
 
 # -----------------------------
@@ -127,19 +124,26 @@ def save_report(report):
 def run():
     print("\n=== EXECUTIVE DIGITAL TWIN RUN START ===\n")
 
-    # 1. Market input
-    opportunity_text = market_scan()
+    # 1. Generate Ross prompt
+    ross_prompt = market_scan(profile, config)
 
-    # 2. Evaluation
+    print(ross_prompt)
+
+    input("\nPress ENTER after pasting prompt to Ross and collecting results...\n")
+
+    # 2. Paste Ross output manually
+    opportunity_text = input("\nPaste Ross job results here:\n")
+
+    # 3. Evaluate
     score = evaluate(opportunity_text)
 
-    # 3. CV optimization
+    # 4. CV optimization
     cv_note = cv_optimize(opportunity_text)
 
-    # 4. Report
+    # 5. Report
     report = generate_report(opportunity_text, score, cv_note)
 
-    # 5. Save
+    # 6. Save
     save_report(report)
 
     print("\n=== RUN COMPLETE ===\n")
