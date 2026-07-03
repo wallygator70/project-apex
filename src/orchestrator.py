@@ -135,8 +135,16 @@ def run():
     input("\nPress ENTER after pasting prompt to Ross and collecting results...\n")
 
     # 2. Paste Ross output manually
-    opportunity_text = input("\nPaste Ross job results here:\n")
+    # opportunity_text = input("\nPaste Ross job results here:\n")
+import os
 
+CI_MODE = os.getenv("CI", "false") == "true"
+
+if CI_MODE:
+    print("CI mode detected: skipping Ross input")
+    opportunity_text = "NO_DATA_CI_MODE"
+else:
+    opportunity_text = input("\nPaste Ross job results here:\n")
     # 3. Evaluate
     score = evaluate(opportunity_text)
 
