@@ -108,6 +108,9 @@ Generated: {datetime.now().isoformat()}
 # -----------------------------
 
 def save_report(report):
+    import os
+
+    os.makedirs("reports/daily", exist_ok=True)
     date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     path = f"reports/daily/report_{date}.md"
 
