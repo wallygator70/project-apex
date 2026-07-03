@@ -1,0 +1,94 @@
+system:
+  name: "Executive Digital Twin"
+  version: "1.0"
+
+execution:
+  mode: "manual_assisted"   # manual_assisted | automated_future
+  daily_run_time: "07:00"
+  timezone: "Europe/Rome"
+
+user:
+  name: "Mario Volonterio"
+
+profile_source:
+  file: "../data/profile.yaml"
+
+market_scan:
+  frequency: "daily"
+  max_opportunities: 50
+
+  geography:
+    primary:
+      - Italy
+      - Switzerland
+      - Germany
+      - UK
+    secondary:
+      - France
+      - Netherlands
+      - Nordics
+
+  seniority_levels:
+    - Director
+    - Senior Director
+    - VP
+    - SVP
+    - C-Level
+
+  industries:
+    - Telecom
+    - ICT
+    - Cloud
+    - AI
+    - Digital Infrastructure
+
+  include_company_types:
+    - Enterprise
+    - Scale-up
+    - Hyperscaler
+    - Telco Vendor
+
+  exclude_company_types:
+    - Early-stage startup
+    - Freelance
+    - Pure consulting (low ownership)
+
+evaluation:
+  scoring_thresholds:
+    priority_A: 85
+    priority_B: 70
+    priority_C: 50
+
+  weights:
+    role_fit: 0.25
+    industry_fit: 0.20
+    transformation_depth: 0.20
+    leadership_level: 0.15
+    geography_fit: 0.10
+    career_value: 0.10
+
+output:
+  max_daily_opportunities: 10
+
+  report_format:
+    type: "markdown"
+    include_sections:
+      - market_overview
+      - priority_opportunities
+      - strategic_insights
+      - cv_recommendations
+      - recommended_actions
+      - risks_gaps
+
+memory:
+  enabled: true
+  store:
+    applications: true
+    companies_seen: true
+    recruiter_interactions: true
+    interview_outcomes: true
+    feedback: true
+
+ross_integration:
+  mode: "manual_copy_paste"
+  prompt_style: "structured_brief"
