@@ -1,7 +1,7 @@
 import yaml
 import json
 from datetime import datetime
-from src.connectors.ross import build_ross_prompt, format_for_ross_display
+from connectors.ross import build_ross_prompt, format_for_ross_display
 # -----------------------------
 # LOAD CONFIG
 # -----------------------------
