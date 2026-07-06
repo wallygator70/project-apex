@@ -128,7 +128,9 @@ def run():
     print("\n=== EXECUTIVE DIGITAL TWIN RUN START ===\n")
 
     # 1. Generate Ross prompt
-    ross_prompt = market_scan(profile, config)
+    from src.prompt_engine.ross_prompt_builder import RossPromptBuilder
+
+    ross_prompt = RossPromptBuilder().build_prompt()
 
     print(ross_prompt)
 
