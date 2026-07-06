@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.prompt_engine.prompt_optimizer import optimize_prompt_strategy
 import yaml
 import json
 import os
@@ -20,7 +21,10 @@ def load_json(path):
     except FileNotFoundError:
         return {}
 
-
+def load_learning_strategy(self):
+    learning = load_json("memory/learning_log.json")
+    return optimize_prompt_strategy(learning)
+    
 # -----------------------------
 # ROSS PROMPT BUILDER
 # -----------------------------
@@ -39,7 +43,7 @@ class RossPromptBuilder:
 
         # Learning loop (MOST IMPORTANT ADDITION)
         self.learning = load_json("memory/learning_log.json")
-
+        self.optimization_strategy = self.load_learning_strategy()
     # -----------------------------
     # CONTEXT AGGREGATION
     # -----------------------------
@@ -105,12 +109,16 @@ Use it to refine targeting, avoid repetition, and improve relevance.
 
 ---
 
-## STRATEGIC OBJECTIVES
-- Focus on VP, Director, CTO-level roles
-- Prioritize AI, Cloud Transformation, Telco, Enterprise IT
-- Prefer transformation mandates over operational roles
-- Avoid companies previously seen unless context is new
-- Optimize for strategic impact, not volume
+## DYNAMIC STRATEGY (AUTO-OPTIMIZED FROM APEX)
+
+- Focus: {self.optimization_strategy["focus"]}
+- Filters: {", ".join(self.optimization_strategy["filters"])}
+
+Rules:
+- Always prioritize highest seniority matches (VP, Director, CTO)
+- Use filters to refine opportunity selection
+- Adapt reasoning based on past performance feedback
+- Avoid repeating low-performing patterns from memory
 
 ---
 
