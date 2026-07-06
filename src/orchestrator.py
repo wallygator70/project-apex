@@ -1,9 +1,13 @@
 import yaml
 import json
+import os
 from datetime import datetime
-from src.connectors.ross import build_ross_prompt, format_for_ross_display
+
+from src.prompt_engine.ross_prompt_builder import RossPromptBuilder
+
+
 # -----------------------------
-# LOAD CONFIG
+# LOAD UTILITIES
 # -----------------------------
 
 def load_yaml(path):
@@ -20,147 +24,173 @@ def load_json(path):
 
 
 # -----------------------------
-# LOAD SYSTEM STATE
+# SYSTEM STATE (OPTIONAL FUTURE USE)
 # -----------------------------
 
 config = load_yaml("config/settings.yaml")
 profile = load_yaml("data/profile.yaml")
 
-memory_applications = load_json("memory/applications.json")
-memory_companies = load_json("memory/companies_seen.json")
-memory_recruiters = load_json("memory/recruiters.json")
 memory_interviews = load_json("memory/interviews.json")
+memory_companies = load_json("memory/companies_seen.json")
+memory_applications = load_json("memory/applications.json")
 
 
 # -----------------------------
-# STAGE 1 — MARKET SCAN (MOCK INPUT FOR NOW)
-# -----------------------------
-def market_scan(profile, config):
-    """
-    Generates structured prompt for Ross (manual execution layer)
-    """
-
-    prompt = build_ross_prompt(profile, config)
-
-    return format_for_ross_display(prompt)
-
-
-# -----------------------------
-# STAGE 2 — EVALUATION (SIMPLIFIED RULE ENGINE)
+# STAGE 1 — ROSS PROMPT GENERATION
 # -----------------------------
 
-def evaluate(opportunity_text):
+def market_scan():
     """
-    Placeholder evaluation logic (will be replaced by LLM calls later)
+    Builds a contextual prompt for Ross using Apex Prompt Engine.
     """
+    builder = RossPromptBuilder()
+    return builder.build_prompt()
 
-    score = 70  # default baseline
 
-    if "AI" in opportunity_text:
+# -----------------------------
+# STAGE 2 — ROSS OUTPUT PARSING
+# -----------------------------
+
+def parse_ross_input(raw_input: str):
+    """
+    Ross must return a valid JSON payload following the contract:
+    {
+        "opportunities": [...]
+    }
+    """
+    try:
+        data = json.loads(raw_input)
+        if "opportunities" not in data:
+            raise ValueError("Missing 'opportunities' key in Ross output")
+        return data
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON from Ross: {e}")
+
+
+# -----------------------------
+# STAGE 3 — EVALUATION ENGINE
+# -----------------------------
+
+def evaluate(opportunity):
+    score = 70
+
+    domains = [d.lower() for d in opportunity.get("domain", [])]
+    seniority = (opportunity.get("seniority") or "").upper()
+    description = (opportunity.get("description") or "").lower()
+
+    if "ai" in domains or "artificial intelligence" in description:
         score += 10
-    if "VP" in opportunity_text or "Director" in opportunity_text:
+
+    if "cloud" in domains or "cloud" in description:
+        score += 5
+
+    if seniority in ["VP", "DIRECTOR", "CTO"]:
         score += 10
-    if "CTO" in opportunity_text:
-        score += 15
 
     return min(score, 100)
 
 
 # -----------------------------
-# STAGE 3 — CV OPTIMIZATION (PLACEHOLDER)
+# STAGE 4 — CV OPTIMIZATION
 # -----------------------------
 
-def cv_optimize(opportunity_text):
-    return f"Align CV narrative to: {opportunity_text[:80]}..."
+def cv_optimize(opportunity):
+    title = opportunity.get("title", "Unknown opportunity")
+    return f"Align CV narrative toward: {title[:120]}"
 
 
 # -----------------------------
-# STAGE 4 — DASHBOARD GENERATION
+# STAGE 5 — REPORT GENERATION
 # -----------------------------
 
-def generate_report(opportunity_text, score, cv_note):
+def generate_report(results):
 
-    report = f"""
-# Executive Daily Briefing
+    timestamp = datetime.now().isoformat()
 
-Generated: {datetime.now().isoformat()}
+    formatted = []
+
+    for opp, score, note in results:
+        formatted.append({
+            "title": opp.get("title"),
+            "company": opp.get("company"),
+            "score": score,
+            "cv_note": note
+        })
+
+    return f"""
+# MVP2 EXECUTIVE REPORT
+
+Generated: {timestamp}
 
 ---
 
-## Opportunity
-{opportunity_text}
+## Opportunities Evaluated
 
-## Score
-{score}
-
-## CV Recommendation
-{cv_note}
+{json.dumps(formatted, indent=2)}
 
 ---
-
 """
 
-    return report
-
 
 # -----------------------------
-# SAVE REPORT
+# STAGE 6 — SAVE REPORT
 # -----------------------------
 
 def save_report(report):
-    import os
-
     os.makedirs("reports/daily", exist_ok=True)
-    date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = f"reports/daily/report_{date}.md"
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    path = f"reports/daily/report_{timestamp}.md"
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(report)
 
-    print(f"\nReport saved to {path}\n")
+    print(f"\nReport saved: {path}\n")
 
 
 # -----------------------------
-# MAIN WORKFLOW
+# MAIN WORKFLOW (MVP2 CORE LOOP)
 # -----------------------------
 
 def run():
-    print("\n=== EXECUTIVE DIGITAL TWIN RUN START ===\n")
+    print("\n=== MVP2 EXECUTION START ===\n")
 
-    # 1. Generate Ross prompt
-    from src.prompt_engine.ross_prompt_builder import RossPromptBuilder
+    # 1. Build Ross prompt
+    ross_prompt = market_scan()
 
-    ross_prompt = RossPromptBuilder().build_prompt()
-
+    print("\n--- ROSS PROMPT ---\n")
     print(ross_prompt)
 
-    input("\nPress ENTER after pasting prompt to Ross and collecting results...\n")
+    # 2. External Ross step (manual but structured JSON contract)
+    raw_input = input("\nPaste Ross JSON output:\n")
+    ross_data = parse_ross_input(raw_input)
 
-    # 2. Paste Ross output manually
-    # opportunity_text = input("\nPaste Ross job results here:\n")
-import os
+    opportunities = ross_data.get("opportunities", [])
 
-CI_MODE = os.getenv("CI", "false") == "true"
+    if not opportunities:
+        print("\nNo opportunities received from Ross.\n")
+        return
 
-if CI_MODE:
-    print("CI mode detected: skipping Ross input")
-    opportunity_text = "NO_DATA_CI_MODE"
-else:
-    opportunity_text = input("\nPaste Ross job results here:\n")
-    # 3. Evaluate
-    score = evaluate(opportunity_text)
+    # 3. Evaluate all opportunities
+    results = []
 
-    # 4. CV optimization
-    cv_note = cv_optimize(opportunity_text)
+    for opp in opportunities:
+        score = evaluate(opp)
+        cv_note = cv_optimize(opp)
+        results.append((opp, score, cv_note))
 
-    # 5. Report
-    report = generate_report(opportunity_text, score, cv_note)
+    # 4. Generate report
+    report = generate_report(results)
 
-    # 6. Save
+    # 5. Save report
     save_report(report)
 
-    print("\n=== RUN COMPLETE ===\n")
+    print("\n=== MVP2 EXECUTION COMPLETE ===\n")
 
+
+# -----------------------------
+# ENTRY POINT
+# -----------------------------
 
 if __name__ == "__main__":
     run()
