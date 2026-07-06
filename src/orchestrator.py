@@ -1,11 +1,11 @@
 import yaml
 import json
 import os
-def update_memory(results):
-#    ...
 from datetime import datetime
 
 from src.prompt_engine.ross_prompt_builder import RossPromptBuilder
+from src.prompt_engine.prompt_evaluator import evaluate_prompt_performance
+from src.prompt_engine.prompt_optimizer import optimize_prompt_strategy
 
 
 # -----------------------------
@@ -26,15 +26,11 @@ def load_json(path):
 
 
 # -----------------------------
-# SYSTEM STATE (OPTIONAL FUTURE USE)
+# SYSTEM STATE (future extensibility)
 # -----------------------------
 
 config = load_yaml("config/settings.yaml")
 profile = load_yaml("data/profile.yaml")
-
-memory_interviews = load_json("memory/interviews.json")
-memory_companies = load_json("memory/companies_seen.json")
-memory_applications = load_json("memory/applications.json")
 
 
 # -----------------------------
@@ -42,9 +38,6 @@ memory_applications = load_json("memory/applications.json")
 # -----------------------------
 
 def market_scan():
-    """
-    Builds a contextual prompt for Ross using Apex Prompt Engine.
-    """
     builder = RossPromptBuilder()
     return builder.build_prompt()
 
@@ -54,17 +47,14 @@ def market_scan():
 # -----------------------------
 
 def parse_ross_input(raw_input: str):
-    """
-    Ross must return a valid JSON payload following the contract:
-    {
-        "opportunities": [...]
-    }
-    """
     try:
         data = json.loads(raw_input)
+
         if "opportunities" not in data:
             raise ValueError("Missing 'opportunities' key in Ross output")
+
         return data
+
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON from Ross: {e}")
 
@@ -102,7 +92,47 @@ def cv_optimize(opportunity):
 
 
 # -----------------------------
-# STAGE 5 — REPORT GENERATION
+# STAGE 5 — MEMORY UPDATE (LEARNING LOOP)
+# -----------------------------
+
+def update_memory(results):
+
+    path = "memory/learning_log.json"
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {"iterations": []}
+
+    performance = evaluate_prompt_performance(results)
+
+    data["iterations"].append({
+        "timestamp": datetime.now().isoformat(),
+        "prompt_version": "v1",
+        "opportunities_count": performance["count"],
+        "avg_score": performance["avg_score"],
+        "best_score": performance["best_score"],
+        "results": [
+            {
+                "title": opp.get("title"),
+                "company": opp.get("company"),
+                "score": score
+            }
+            for opp, score, _ in results
+        ]
+    })
+
+    os.makedirs("memory", exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    print("\nMemory updated.\n")
+
+
+# -----------------------------
+# STAGE 6 — REPORT GENERATION
 # -----------------------------
 
 def generate_report(results):
@@ -132,39 +162,14 @@ Generated: {timestamp}
 
 ---
 """
-# --------------------
-#STAGE 5b - UPDATE MEMORY
-# --------------------
-def update_memory(results):
-    path = "memory/learning_log.json"
 
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        data = {"iterations": []}
 
-    for opp, score, note in results:
-        data["iterations"].append({
-            "timestamp": datetime.now().isoformat(),
-            "title": opp.get("title"),
-            "company": opp.get("company"),
-            "score": score,
-            "cv_note": note,
-            "domain": opp.get("domain", [])
-        })
-
-    os.makedirs("memory", exist_ok=True)
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-    print("\nMemory updated.\n")
 # -----------------------------
-# STAGE 6 — SAVE REPORT
+# STAGE 7 — SAVE REPORT
 # -----------------------------
 
 def save_report(report):
+
     os.makedirs("reports/daily", exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -177,19 +182,20 @@ def save_report(report):
 
 
 # -----------------------------
-# MAIN WORKFLOW (MVP2 CORE LOOP)
+# MAIN WORKFLOW
 # -----------------------------
 
 def run():
-    print("\n=== MVP2 EXECUTION START ===\n")
 
-    # 1. Build Ross prompt
+    print("\n=== MVP2 + APEX INTELLIGENCE LOOP START ===\n")
+
+    # 1. Build dynamic Ross prompt (with optimizer inside builder)
     ross_prompt = market_scan()
 
     print("\n--- ROSS PROMPT ---\n")
     print(ross_prompt)
 
-    # 2. External Ross step (manual but structured JSON contract)
+    # 2. External Ross step (manual JSON contract)
     raw_input = input("\nPaste Ross JSON output:\n")
     ross_data = parse_ross_input(raw_input)
 
@@ -199,7 +205,7 @@ def run():
         print("\nNo opportunities received from Ross.\n")
         return
 
-    # 3. Evaluate all opportunities
+    # 3. Evaluate opportunities
     results = []
 
     for opp in opportunities:
@@ -210,10 +216,13 @@ def run():
     # 4. Generate report
     report = generate_report(results)
 
-    # 5. Save report
+    # 5. MEMORY LOOP (learning after evaluation)
+    update_memory(results)
+
+    # 6. Save report
     save_report(report)
 
-    print("\n=== MVP2 EXECUTION COMPLETE ===\n")
+    print("\n=== EXECUTION COMPLETE ===\n")
 
 
 # -----------------------------
