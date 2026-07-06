@@ -1,6 +1,8 @@
 import yaml
 import json
 import os
+def update_memory(results):
+#    ...
 from datetime import datetime
 
 from src.prompt_engine.ross_prompt_builder import RossPromptBuilder
@@ -130,8 +132,34 @@ Generated: {timestamp}
 
 ---
 """
+# --------------------
+#STAGE 5b - UPDATE MEMORY
+# --------------------
+def update_memory(results):
+    path = "memory/learning_log.json"
 
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {"iterations": []}
 
+    for opp, score, note in results:
+        data["iterations"].append({
+            "timestamp": datetime.now().isoformat(),
+            "title": opp.get("title"),
+            "company": opp.get("company"),
+            "score": score,
+            "cv_note": note,
+            "domain": opp.get("domain", [])
+        })
+
+    os.makedirs("memory", exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    print("\nMemory updated.\n")
 # -----------------------------
 # STAGE 6 — SAVE REPORT
 # -----------------------------
